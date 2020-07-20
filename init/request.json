@@ -1,0 +1,179 @@
+{
+    "general rules": {
+        "shifts max consecutive": 2,
+        "hours max": 60
+    },
+    "shift_info": {
+        "morning": {
+            "duration hours": 8,
+            "num workers min": 4,
+            "num workers max": 6
+        },
+        "day": {
+            "duration hours": 8,
+            "num workers min": 5,
+            "num workers max": 7
+        },
+        "evening normal": {
+            "duration hours": 6,
+            "num workers min": 3,
+            "num workers max": 5
+        },
+        "evening weekend": {
+            "duration hours": 4,
+            "num workers min": 2,
+            "num workers max": 4
+        }
+    },
+    "schedule": {
+        "monday": ["morning","day","evening normal"],
+        "tuesday": ["morning","day","evening normal"],
+        "wednesday": ["morning","day","evening normal"],
+        "thursday": ["morning","day","evening normal"],
+        "friday": ["morning","day","evening normal"],
+        "saturday": ["morning","day","evening weekend"],
+        "sunday": ["morning","day","evening weekend"]
+    },
+    "employees": {
+        "ID001": {
+            "name": "Kari Nordmann",
+            "supervisor": true,
+            "shifts normal": 5,
+            "shifts max": 8,
+            "cost normal": 3000,
+            "cost overtime": 4000,
+            "custom rules": []
+        },
+        "ID002": {
+            "name": "Kari Nordmann",
+            "supervisor": true,
+            "shifts normal": 5,
+            "shifts max": 8,
+            "cost normal": 3000,
+            "cost overtime": 4000,
+            "custom rules": []
+        },
+        "ID003": {
+            "name": "Kari Nordmann",
+            "supervisor": true,
+            "shifts normal": 5,
+            "shifts max": 8,
+            "cost normal": 3000,
+            "cost overtime": 4000,
+            "custom rules": []
+        },
+        "ID004": {
+            "name": "Ola Nordmann",
+            "shifts normal": 4,
+            "shifts max": 10,
+            "cost normal": 2000,
+            "cost overtime": 2500,
+            "custom rules": []
+        },
+        "ID005": {
+            "name": "Ola Nordmann",
+            "shifts normal": 4,
+            "shifts max": 10,
+            "cost normal": 2000,
+            "cost overtime": 2500,
+            "custom rules": [
+                {
+                    "day": "tuesday",
+                    "shift": "morning",
+                    "rule": "require work"
+                },
+                {
+                    "day": "tuesday",
+                    "shift": "day",
+                    "rule": "require work"
+                }
+            ]
+        },
+        "ID006": {
+            "name": "Ola Nordmann",
+            "shifts normal": 4,
+            "shifts max": 10,
+            "cost normal": 2000,
+            "cost overtime": 2500,
+            "custom rules": [
+                {
+                    "day": "wednesday",
+                    "shift": "evening normal",
+                    "rule": "require free"
+                }
+            ]
+        },
+        "ID007": {
+            "name": "Ola Nordmann",
+            "shifts normal": 4,
+            "shifts max": 10,
+            "cost normal": 2000,
+            "cost overtime": 2500,
+            "custom rules": []
+        },
+        "ID008": {
+            "name": "Ola Nordmann",
+            "shifts normal": 4,
+            "shifts max": 10,
+            "cost normal": 2000,
+            "cost overtime": 2500,
+            "custom rules": []
+        },
+        "ID009": {
+            "name": "Ola Nordmann",
+            "shifts normal": 4,
+            "shifts max": 10,
+            "cost normal": 2000,
+            "cost overtime": 2500,
+            "custom rules": []
+        },
+        "ID010": {
+            "name": "Ola Nordmann",
+            "shifts normal": 4,
+            "shifts max": 10,
+            "cost normal": 2000,
+            "cost overtime": 2500,
+            "custom rules": []
+        },
+        "ID011": {
+            "name": "Ola Nordmann",
+            "shifts normal": 4,
+            "shifts max": 10,
+            "cost normal": 2000,
+            "cost overtime": 2500,
+            "custom rules": []
+        },
+        "ID012": {
+            "name": "Ola Nordmann",
+            "shifts normal": 4,
+            "shifts max": 10,
+            "cost normal": 2000,
+            "cost overtime": 2500,
+            "custom rules": []
+        },
+        "ID013": {
+            "name": "Ola Nordmann",
+            "shifts normal": 4,
+            "shifts max": 10,
+            "cost normal": 2000,
+            "cost overtime": 2500,
+            "custom rules": []
+        },
+        "ID014": {
+            "name": "Ola Nordmann",
+            "shifts normal": 4,
+            "shifts max": 10,
+            "cost normal": 2000,
+            "cost overtime": 2500,
+            "custom rules": []
+        },
+        "ID015": {
+            "name": "Ola Nordmann",
+            "shifts normal": 4,
+            "shifts max": 10,
+            "cost normal": 2000,
+            "cost overtime": 2500,
+            "custom rules": []
+        }
+    }
+}
