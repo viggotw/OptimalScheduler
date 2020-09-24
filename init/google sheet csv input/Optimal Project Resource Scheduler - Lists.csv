@@ -1,0 +1,6 @@
+Lists,,,,
+Optimization mode,Worker skills,Worker relationship,Match and mismatch mode,Worker shift requests
+Cost,Engineer,Match,Request link,Request time off
+Requests,Electrician,Mismatch,Enforce link,Request work
+,Plumber,,,Enforce time off
+,Carpenter,,,Enforce work
