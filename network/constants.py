@@ -21,4 +21,3 @@ class EdgeConstraintMode(Enum):
     REQUEST_FALSE = "request false"
     ENFORCE_TRUE = "enforce true"
     ENFORCE_FALSE = "enforce false"
-
