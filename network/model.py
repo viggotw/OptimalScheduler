@@ -25,6 +25,7 @@ class Relationship:
 
 class Network:
     def __init__(self, name):
+        self.name = name
         self.sources = {}
         self.sinks = {}
         self.creds = None
@@ -32,7 +33,7 @@ class Network:
         self.relationships = {ConstraintMode.ENFORCE: [], ConstraintMode.REQUEST: []}
         self.edgeConstraints = {ConstraintMode.ENFORCE: [], ConstraintMode.REQUEST: []}
 
-        self._model = pulp.LpProblem(name, sense=pulp.LpMinimize)
+        self._model = None
         self._network = None
         self._constraints = []
 
@@ -188,14 +189,15 @@ class Network:
     
 
     def solve(self, optSense="minimize", objectiveMode="cost"):
+        optSense = OptimizationSense(optSense)
         objectiveMode = ObjectiveMode(objectiveMode)
-        sense = OptimizationSense(optSense)
 
         if optSense is OptimizationSense.MAXIMIZE:
-            self._model.objective.sense = pulp.LpMaximize
+            sense = pulp.LpMaximize
         elif optSense is OptimizationSense.MINIMIZE:
-            self._model.objective.sense = pulp.LpMinimize
+            sense = pulp.LpMinimize
 
+        self._model = pulp.LpProblem(self.name, sense=sense)
         self._build_network()
         self._apply_constraints()
         self._set_objective(objectiveMode)
