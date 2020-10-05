@@ -31,3 +31,4 @@ class ObjectiveMode(Enum):
     NONE = "none"
     COST = "cost"
     REQUESTS = "requests"
+    COSTANDREQUESTS = "cost+requests"

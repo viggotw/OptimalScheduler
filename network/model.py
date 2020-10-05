@@ -167,12 +167,9 @@ class Network:
                     relationshipMatch = pulp.LpVariable(f"relationshipMatch_{sourceIDsTxt}_{sinkName}", upBound=1)
                     sources2sink = self._network.loc[relationship.sourceIDs, sinkName]
 
-                    self._constraints.update(
-                        {
-                            f"RelationshipMatch_{relationship.sourceIDs}_to_{sinkName}_#{i+1}": relationshipMatch <= source2sink
-                            for i, source2sink in enumerate(sources2sink)
-                        }
-                    )
+                    for i, source2sink in enumerate(sources2sink):
+                        self._constraints[f"RelationshipMatch_{relationship.sourceIDs}_to_{sinkName}_#{i+1}"] = \
+                        relationshipMatch <= source2sink
 
                     self._relationshipVars[str(relationshipMatch)] = relationshipMatch
                     self._objFuncRequestTerms.append(relationshipMatch)
@@ -188,6 +185,13 @@ class Network:
 
                     self._relationshipVars[str(relationshipMismatch)] = relationshipMismatch
                     self._objFuncRequestTerms.append(-relationshipMismatch)
+
+    def _get_objective_cost_terms(self):
+        objFuncList = []
+        for sourceName, source in self.sources.items():
+            sourceCost = source.cost * pulp.lpSum(self._network.loc[sourceName,:].to_numpy()) 
+            objFuncList.append(sourceCost)
+        return objFuncList
 
     def _get_vals(self, x):
         if isinstance(x, pulp.pulp.LpVariable):
@@ -244,21 +248,26 @@ class Network:
 
         self._model.constraints = self._constraints  
 
-    def _set_objective(self, objective):
-        if objective == ObjectiveMode.COST:
-            objFuncList = []
-            for sourceName, source in self.sources.items():
-                sourceCost = source.cost * pulp.lpSum(self._network.loc[sourceName,:].to_numpy()) 
-                objFuncList.append(sourceCost)
+    def _set_objective(self, objective, pricePerRequest=0):
+        objective = ObjectiveMode(objective)
 
-            self._model.objective = pulp.lpSum(objFuncList)
+        if objective == ObjectiveMode.COST:
+            objCostTerms = self._get_objective_cost_terms()
+            self._model.objective = pulp.lpSum(objCostTerms)
 
         elif objective == ObjectiveMode.REQUESTS:
-            self._model.objective = pulp.lpSum(self._objFuncRequestTerms) - 1e-2*pulp.lpSum(self._network.to_numpy())
+            self._model.objective = pulp.lpSum(self._objFuncRequestTerms)
 
-    def solve(self, optSense="minimize", objectiveMode="cost"):
+        elif objective == ObjectiveMode.COSTANDREQUESTS:
+            objCostTerms = self._get_objective_cost_terms()
+            objRequestTerms = self._objFuncRequestTerms
+            self._model.objective = pulp.lpSum(objCostTerms) - pricePerRequest * pulp.lpSum(objRequestTerms)
+
+        elif objective == ObjectiveMode.NONE:
+            return 0
+
+    def solve(self, optSense="minimize", objectiveMode="cost", pricePerRequest=0, **kwargs):
         optSense = OptimizationSense(optSense)
-        objectiveMode = ObjectiveMode(objectiveMode)
 
         if optSense is OptimizationSense.MAXIMIZE:
             sense = pulp.LpMaximize
@@ -268,8 +277,9 @@ class Network:
         self._model = pulp.LpProblem(self.name, sense=sense)
         self._build_network()
         self._set_constraints()
-        self._set_objective(objectiveMode)
+        self._set_objective(objectiveMode, pricePerRequest)
 
+        self._model.solver = pulp.apis.PULP_CBC_CMD(**kwargs)
         status = self._model.solve()
         return pulp.LpStatus[status]
 
