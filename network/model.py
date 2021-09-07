@@ -6,7 +6,7 @@ import numpy as np
 from .constants import ConstraintMode, RelationshipCategory, EdgeConstraintCategory, OptimizationSense, ObjectiveMode
 
 class Source:  # "workers"
-    def __init__(self,capacityMin=0,  capacityMax=None, cost=0, *args):
+    def __init__(self, capacityMin=0, capacityMax=None, cost=0, *args):
 
         self.capacityMin = int(capacityMin)
         if capacityMax:
