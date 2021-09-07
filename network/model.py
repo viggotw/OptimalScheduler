@@ -6,17 +6,20 @@ import numpy as np
 from .constants import ConstraintMode, RelationshipCategory, EdgeConstraintCategory, OptimizationSense, ObjectiveMode
 
 class Source:  # "workers"
-    def __init__(self, maxCapacity=1, cost=0, *args):
-        self.maxCapacity = int(maxCapacity)
+    def __init__(self,capacityMin=0,  capacityMax=None, cost=0, *args):
+
+        self.capacityMin = int(capacityMin)
+        if capacityMax:
+            self.capacityMax = int(capacityMax)
         self.cost = float(cost)
-        self.creds = set(args)  # "skills"
+        self.attrs = set(args)  # "skills"
 
 
 class Sink:  # "projects" or "shifts"
-    def __init__(self, capacityMin, capacityMax, credentials={}):
+    def __init__(self, capacityMin, capacityMax, attributes={}):
         self.capacityMin = int(capacityMin)  # Number of workers
         self.capacityMax = capacityMax
-        self.creds = credentials  # Required (number of) skills
+        self.attrs = attributes  # Required (number of) skills
 
 
 class Relationship:
@@ -30,8 +33,8 @@ class Network:
         self.name = name
         self.sources = {}
         self.sinks = {}
-        self.creds = None
-        self._sourcesWithCreds = {}
+        self.attrs = None
+        self._sourcesWithAttrs = {}
         self.relationships = {ConstraintMode.ENFORCE: [], ConstraintMode.REQUEST: []}
         self.edgeConstraints = {ConstraintMode.ENFORCE: [], ConstraintMode.REQUEST: []}
 
@@ -45,45 +48,45 @@ class Network:
         self.relationshipCategory = RelationshipCategory
         self.edgeConstraintCategory = EdgeConstraintCategory
 
-    def _get_enum_member(self, enum_member, enum):
+    def _getEnumMember(self, enum_member, enum):
         if isinstance(enum_member, str):
             assert enum_member in enum.__members__, f"{enum_member} is not a member of {enum} in {self}"
             member = enum.__members__[enum_member]
         elif enum_member in enum:
             member = enum_member
         else:
-            raise TypeError(f"The credential {enum_member} must be either a string or an enum attribute member of {enum_member} in {self}")
+            raise TypeError(f"The attribute {enum_member} must be either a string or an enum attribute member of {enum_member} in {self}")
         return member
 
-    def setCredentials(self, *credentials):
-        self.creds = set(credentials)
-        self._sourcesWithCreds = {cred: [] for cred in self.creds}
+    def setAttributes(self, *attributes):
+        self.attrs = set(attributes)
+        self._sourcesWithAttrs = {attr: [] for attr in self.attrs}
 
-    def addSource(self, ID, maxCapacity=1, cost=0, creds=set()):
-        creds = set(creds)
+    def addSource(self, ID, capacityMin=0, capacityMax=None, cost=0, attrs=set()):
+        attrs = set(attrs)
         
-        if creds and not self.creds:
-            raise AttributeError("Object has no defined credentials. Use method .setCredentials() before adding sources with credentials.")
+        if attrs and not self.attrs:
+            raise AttributeError("Object has no defined attributes. Use method .setAttributes() before adding sources with attributes.")
         
-        credentials = set()
-        for cred in creds:
-            assert cred in self.creds
-            self._sourcesWithCreds[cred].append(ID)
+        attributes = set()
+        for attr in attrs:
+            assert attr in self.attrs
+            self._sourcesWithAttrs[attr].append(ID)
 
-        self.sources[ID] = Source(maxCapacity, cost, *credentials)
+        self.sources[ID] = Source(capacityMin, capacityMax, cost, *attributes)
 
-    def _get_enum_dict(self, orgDict):
-        credsDict = {}
+    def _getEnumDict(self, orgDict):
+        attrsDict = {}
         for key in orgDict:
-            key_enum = self._get_enum_member(key, self.creds)
-            credsDict[key_enum] = orgDict[key]
-        return credsDict
+            key_enum = self._getEnumMember(key, self.attrs)
+            attrsDict[key_enum] = orgDict[key]
+        return attrsDict
 
-    def addSink(self, ID, capacityMin=0, capacityMax=None, creds={}):
-        for cred in creds:
-            assert cred in self.creds
+    def addSink(self, ID, capacityMin=0, capacityMax=None, attrs={}):
+        for attr in attrs:
+            assert attr in self.attrs
                 
-        self.sinks[ID] = Sink(capacityMin, capacityMax, creds)
+        self.sinks[ID] = Sink(capacityMin, capacityMax, attrs)
 
     def addRelationship(self, sourceIDs, mode, category):
         sourceIDs = set(sourceIDs)
@@ -96,19 +99,22 @@ class Network:
         category = EdgeConstraintCategory(category)
         self.edgeConstraints[mode].append((sourceID, sinkID, category))
 
-    def _build_network(self):
+    def _buildNetwork(self):
         data = {sink: {
             source : pulp.LpVariable(f"{source}_{sink}", cat="Binary") for source in self.sources.keys()}
             for sink in self.sinks.keys()}
 
         self._network = pd.DataFrame.from_dict(data)
 
-    def _constrain_source_capacities(self):
+    def _constrainSourceCapacities(self):
         for sourceName, source in self.sources.items():
+            self._constraints[f"Minimum capacity for {sourceName}"] = \
+                 pulp.lpSum(self._network.loc[sourceName, :].to_numpy()) >= source.capacityMin
+            
             self._constraints[f"Maximum capacity for {sourceName}"] = \
-                 pulp.lpSum(self._network.loc[sourceName, :].to_numpy()) <= source.maxCapacity
+                 pulp.lpSum(self._network.loc[sourceName, :].to_numpy()) <= source.capacityMax
 
-    def _constrain_sink_capacities(self):
+    def _constrainSinkCapacities(self):
         for sinkName, sink in self.sinks.items():
             self._constraints[f"Minimum capacity for {sinkName}"] = \
                 pulp.lpSum(self._network.loc[:,sinkName].to_numpy()) >= sink.capacityMin
@@ -117,22 +123,26 @@ class Network:
                 self._constraints[f"Maximum capacity for {sinkName}"] = \
                     pulp.lpSum(self._network.loc[:,sinkName].to_numpy()) <= sink.capacityMax
 
-    def _constrain_sink_credentials(self):
+    def _constrainSinkAttributes(self):
         for sinkName, sink in self.sinks.items():
-            for cred in sink.creds:
-                sources = self._sourcesWithCreds[cred]
-                self._constraints[f"Minimum credentials '{cred}' for {sinkName}"] = \
-                    pulp.lpSum(self._network.loc[sources,sinkName].to_numpy()) >= sink.creds[cred]
+            for attr in sink.attrs:
+                sources = self._sourcesWithAttrs[attr]
+                self._constraints[f"Minimum attributes '{attr}' for {sinkName}"] = \
+                    pulp.lpSum(self._network.loc[sources,sinkName].to_numpy()) >= sink.attrs[attr]
 
-    def _constrain_edges(self):
+    def _constrainEdges(self):
+        # Force specific source and sink to be either active or inactive
         for sourceID, sinkID, category in self.edgeConstraints[ConstraintMode.ENFORCE]:
             if category is EdgeConstraintCategory.ACTIVE:
                 self._constraints[f"Force {sourceID} to be active for {sinkID}"] = self._network.loc[sourceID, sinkID] == 1
+            
             elif category is EdgeConstraintCategory.INACTIVE:
                 self._constraints[f"Force {sourceID} to be inactive for {sinkID}"] = self._network.loc[sourceID, sinkID] == 0
+            
             else:
                 raise ValueError(f"Unrecognized edge constraint category '{category}' for the edge ({sourceID}, {sinkID})")
 
+        # Request specific source and sink to be either active or inactive
         for sourceID, sinkID, category in self.edgeConstraints[ConstraintMode.REQUEST]:
             if category is EdgeConstraintCategory.ACTIVE:
                 self._objFuncRequestTerms.append(
@@ -145,7 +155,8 @@ class Network:
             else:
                 raise ValueError(f"Unrecognized edge constraint category '{category}' for the edge ({sourceID}, {sinkID})")
 
-    def _constrain_source_relationships(self):
+    def _constrainSourceRelationships(self):
+        # Force relationship into a match or mistmatch
         for relationship in self.relationships[ConstraintMode.ENFORCE]:
             if relationship.category is RelationshipCategory.MATCH:
                 for sinkName in self.sinks:
@@ -160,6 +171,7 @@ class Network:
                         self._constraints[f"Relatioship_mismatch_{source1_name}_and_{source2_name}_for_{sinkName}"] = \
                             source1_var + source2_var <= 1
 
+        # Request relationship into a match or mistmatch
         for relationship in self.relationships[ConstraintMode.REQUEST]:
             if relationship.category is RelationshipCategory.MATCH:
                 sourceIDsTxt = str(relationship.sourceIDs).replace(' ','')
@@ -186,14 +198,14 @@ class Network:
                     self._relationshipVars[str(relationshipMismatch)] = relationshipMismatch
                     self._objFuncRequestTerms.append(-relationshipMismatch)
 
-    def _get_objective_cost_terms(self):
+    def _getObjectiveCostTerms(self):
         objFuncList = []
         for sourceName, source in self.sources.items():
             sourceCost = source.cost * pulp.lpSum(self._network.loc[sourceName,:].to_numpy()) 
             objFuncList.append(sourceCost)
         return objFuncList
 
-    def _get_vals(self, x):
+    def _getValues(self, x):
         if isinstance(x, pulp.pulp.LpVariable):
             val = x.value()
             if val is None:
@@ -208,13 +220,13 @@ class Network:
         else:
             return x
 
-    def _get_total_cost(self, result):
+    def _getTotalCost(self, result):
         cost = 0
         for sourceName, source in self.sources.items():
             cost += source.cost * result.loc[sourceName,:].sum()
         return cost
 
-    def _get_request_scores(self, results):
+    def _getRequestScores(self, results):
         score_requests_accepted = 0
         score_requests_rejected = 0
 
@@ -239,32 +251,32 @@ class Network:
 
         return score_requests_accepted, score_requests_rejected
 
-    def _set_constraints(self):
-        self._constrain_source_capacities()
-        self._constrain_sink_capacities()
-        self._constrain_sink_credentials()
-        self._constrain_edges()
-        self._constrain_source_relationships()  
+    def _setConstraints(self):
+        self._constrainSourceCapacities()
+        self._constrainSinkCapacities()
+        self._constrainSinkAttributes()
+        self._constrainEdges()
+        self._constrainSourceRelationships()  
 
         self._model.constraints = self._constraints  
 
-    def _set_objective(self, objective, pricePerRequest=0):
+    def _setObjective(self, objective, pricePerRequest=0):
         objective = ObjectiveMode(objective)
 
         if objective == ObjectiveMode.COST:
-            objCostTerms = self._get_objective_cost_terms()
+            objCostTerms = self._getObjectiveCostTerms()
             self._model.objective = pulp.lpSum(objCostTerms)
 
         elif objective == ObjectiveMode.REQUESTS:
             self._model.objective = pulp.lpSum(self._objFuncRequestTerms)
 
         elif objective == ObjectiveMode.COSTANDREQUESTS:
-            objCostTerms = self._get_objective_cost_terms()
+            objCostTerms = self._getObjectiveCostTerms()
             objRequestTerms = self._objFuncRequestTerms
             self._model.objective = pulp.lpSum(objCostTerms) - pricePerRequest * pulp.lpSum(objRequestTerms)
 
         elif objective == ObjectiveMode.NONE:
-            return 0
+            self._model.objective = 0
 
     def solve(self, optSense="minimize", objectiveMode="cost", pricePerRequest=0, **kwargs):
         optSense = OptimizationSense(optSense)
@@ -275,20 +287,20 @@ class Network:
             sense = pulp.LpMinimize
 
         self._model = pulp.LpProblem(self.name, sense=sense)
-        self._build_network()
-        self._set_constraints()
-        self._set_objective(objectiveMode, pricePerRequest)
+        self._buildNetwork()
+        self._setConstraints()
+        self._setObjective(objectiveMode, pricePerRequest)
 
         self._model.solver = pulp.apis.PULP_CBC_CMD(**kwargs)
         status = self._model.solve()
         return pulp.LpStatus[status]
 
-    def get_result(self):
+    def getResult(self):
         result = self._network.copy(deep=True)
-        result = result.applymap(self._get_vals).astype(int)
+        result = result.applymap(self._getValues).astype(int)
 
-        total_cost = self._get_total_cost(result)
-        score_requests_accepted, score_requests_rejected = self._get_request_scores(result)
+        total_cost = self._getTotalCost(result)
+        score_requests_accepted, score_requests_rejected = self._getRequestScores(result)
 
         print(f"Total cost: {total_cost}")
         print(f'Happiness: {score_requests_accepted - score_requests_rejected}')
